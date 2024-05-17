@@ -1,4 +1,4 @@
-from .utils import no_type_cast, csv_string_to_list_strip, parse_range, TrueTrue
+from .utils import no_type_cast, csv_string_to_list_strip, parse_range
 import itertools
 
 
@@ -6,13 +6,12 @@ def create_axes(xyz_grid):
     def get_axis(name, axis_type=None):
         """Find an axis of axis_type by name, case-sensitive -> case-insensitive"""
         for option in xyz_grid.axis_options:
-            print(option.label)
-            if option.label == name:
+            if option.label == name or getattr(option, 'label_name', None) == name:
                 if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
                     return option
         name_lower = name.lower()
         for option in xyz_grid.axis_options:
-            if option.label.lower() == name_lower:
+            if option.label.lower() == name_lower or (label_name := getattr(option, 'label_name', None) and label_name.lower() == name_lower):
                 if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
                     return option
         raise RuntimeError(f'[Addon] Multi axis: could not find axis named "{name}"')
@@ -20,12 +19,14 @@ def create_axes(xyz_grid):
     step_changer = [get_axis(n) for n in ['Steps', 'Hires steps']]
 
     class MultiAxis(xyz_grid.AxisOption):
-        def __init__(self):
+        label_name = '[Addon] Multi axis'
+
+        def __init__(self, is_img2img):
             self.label = '[Addon] Multi axis'
             self.type = no_type_cast
             self.cost = 0.0
             self.choices = None
-            self.is_img2img = TrueTrue()
+            self.is_img2img = is_img2img
 
         def prepare(self, vals):
             self.cost = 0.0  # reset axis cost
@@ -35,7 +36,7 @@ def create_axes(xyz_grid):
             for param in csv_string_to_list_strip(vals, delimiter='|', quotechar="'"):
                 param = param.strip()
                 axis_name, _, value = param.partition(':')
-                axis = get_axis(axis_name.strip())
+                axis = get_axis(axis_name.strip(), self.is_img2img)
                 axes.append(axis)
                 self.cost += axis.cost  # sum cost of individual axis
                 valuse.append(self.process_multi_axis(axis, value.strip()))
@@ -114,4 +115,4 @@ def create_axes(xyz_grid):
                         val += int(value[0])
                 return other + val
 
-    return [MultiAxis()]
+    return [MultiAxis(False), MultiAxis(True)]

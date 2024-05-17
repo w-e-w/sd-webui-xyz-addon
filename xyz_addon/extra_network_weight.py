@@ -1,4 +1,4 @@
-from .utils import no_type_cast, csv_string_to_list_strip, parse_range, TrueTrue
+from .utils import TrueTrue, no_type_cast, csv_string_to_list_strip, parse_range
 from modules import extra_networks
 
 

@@ -1,8 +1,6 @@
-from modules import scripts, extra_networks, shared
 from io import StringIO
 import numpy as np
 import itertools
-import json
 import csv
 
 
