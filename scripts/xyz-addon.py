@@ -238,11 +238,12 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
         self.network_name = None
 
     def prepare(self, vals):
-        self.network_name, sep, weights = vals.partition(':')
+        network_name, sep, weights = vals.partition(':')
         if not sep:
             assert False, f'Network name not found "{vals}"'
         if not (valslist := parse_range(xyz_grid.csv_string_to_list_strip(weights), False)):
             assert False, f'No weights found for network "{self.network_name}"'
+        self.network_name = network_name.strip()
         return [(self.network_name, str(weight)) for weight in valslist]
 
     @staticmethod
