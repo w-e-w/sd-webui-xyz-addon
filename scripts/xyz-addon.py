@@ -91,11 +91,11 @@ class MultiAxis(xyz_grid.AxisOption):
     label_name = '[Addon] Multi axis'
 
     def __init__(self, is_img2img):
-        super().__init__(MultiAxis.label_name, self.type, self.apply_multi_axis, self.format_multi_axis, prepare=self.prepare_multi_axis)
+        super().__init__(MultiAxis.label_name, self.type, self.apply, self.format, prepare=self.prepare)
         self.is_img2img = is_img2img
         self.update_total_step = 0
 
-    def prepare_multi_axis(self, vals):
+    def prepare(self, vals):
         self.cost = 0.0  # reset axis cost
         axes, valuse, multiaxis_values = [], [], []
 
@@ -106,7 +106,7 @@ class MultiAxis(xyz_grid.AxisOption):
             axis = get_axis(axis_name.strip())
             axes.append(axis)
             self.cost += axis.cost  # sum cost of individual axis
-            valuse.append(self.multi_axis_process_axis(axis, value.strip()))
+            valuse.append(self.process_multi_axis(axis, value.strip()))
 
         # combination products
         for c in itertools.combinations(valuse, len(valuse)):
@@ -125,13 +125,13 @@ class MultiAxis(xyz_grid.AxisOption):
         return multiaxis_values
 
     @staticmethod
-    def apply_multi_axis(p, x, xs):
+    def apply(p, x, xs):
         for index, (axis, xi) in enumerate(x):
             xsi = [x[index][1] for x in xs]
             axis.apply(p, xi, xsi)
 
     @staticmethod
-    def multi_axis_process_axis(opt, vals):
+    def process_multi_axis(opt, vals):
         """A modified version of xyz_grid.Script.run.process_axis()"""
         if opt.label == 'Nothing':
             return [0]
@@ -199,7 +199,7 @@ class MultiAxis(xyz_grid.AxisOption):
 
         return valslist
 
-    def format_multi_axis(self, p, opt, x):
+    def format(self, p, opt, x):
         lables = []
         for axis, val in x:
             lables.append(f'{axis.label}: {val}')
@@ -224,10 +224,8 @@ class MultiAxis(xyz_grid.AxisOption):
 
 
 class ExtraNetworkWeight(xyz_grid.AxisOption):
-    label_name = '[Addon] Extra Network Weight'
-
     def __init__(self, is_img2img):
-        super().__init__(self.label_name, float, self.apply, self.format, self.confirm, prepare=self.prepare, )
+        super().__init__('[Addon] Extra Network Weight', float, self.apply, self.format, self.confirm, prepare=self.prepare, )
         self.is_img2img = is_img2img
         self.network_name = None
 
@@ -237,7 +235,7 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
             assert False, f'Network name not found "{vals}"'
         valslist = xyz_grid.csv_string_to_list_strip(weights)
         if not valslist:
-            assert False, f'No weights found for network {self.network_name}'
+            assert False, f'No weights found for network "{self.network_name}"'
         return valslist
 
     def confirm(self, p, valslist):
@@ -264,11 +262,28 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
 
 
 axis_sr_placeholder_name = '[Addon] Prompt S/R Placeholder'
-axis_sr_placeholder = xyz_grid.AxisOption(axis_sr_placeholder_name, no_type_cast, lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_sr_placeholder_name), format_placeholder, prepare=prepare_sr_placeholder)
+axis_sr_placeholder = xyz_grid.AxisOption(
+    axis_sr_placeholder_name,
+    no_type_cast,
+    lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_sr_placeholder_name),
+    format_placeholder,
+    prepare=prepare_sr_placeholder)
 axis_combination_name = '[Addon] Prompt S/R Combinations'
-axis_combination = xyz_grid.AxisOption(axis_combination_name, no_type_cast, lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_combination_name), format_placeholder, prepare=lambda s: combinatorics(s, itertools.combinations))
+axis_combination = xyz_grid.AxisOption(
+    axis_combination_name,
+    no_type_cast,
+    lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_combination_name),
+    format_placeholder,
+    prepare=lambda s: combinatorics(s, itertools.combinations)
+)
 axis_permutations_name = '[Addon] Prompt S/R Permutations'
-axis_permutation = xyz_grid.AxisOption(axis_permutations_name, no_type_cast, lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_permutations_name), format_placeholder, prepare=lambda s: combinatorics(s, itertools.permutations))
+axis_permutation = xyz_grid.AxisOption(
+    axis_permutations_name,
+    no_type_cast,
+    lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_permutations_name),
+    format_placeholder,
+    prepare=lambda s: combinatorics(s, itertools.permutations)
+)
 
 
 xyz_grid.axis_options.extend([
