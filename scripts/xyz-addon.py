@@ -266,9 +266,11 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
 
 
 class OverrideSetting(xyz_grid.AxisOption):
-    def __init__(self, is_img2img):
-        super().__init__('[Addon] Override Setting', no_type_cast, self.apply, self.format, prepare=self.prepare)
+    def __init__(self, is_img2img, int_mode):
+        label = '[Addon] Override Setting (int)' if int_mode else '[Addon] Override Setting'
+        super().__init__(label, no_type_cast, self.apply, self.format, prepare=self.prepare)
         self.is_img2img = is_img2img
+        self.int_mode = int_mode
         self.setting_key = None
 
     def prepare(self, vals):
@@ -277,13 +279,13 @@ class OverrideSetting(xyz_grid.AxisOption):
             assert False, f'No key found in: {vals}'
         self.setting_key = setting_key.strip()
         try:
-            setting_value = getattr(shared.opts, setting_key)
+            setting_value = getattr(shared.opts, self.setting_key)
         except Exception:
-            assert False, f'Invalid setting key: {setting_key}'
+            assert False, f'Invalid setting key: {self.setting_key}'
 
         valslist = csv_string_to_list_strip(values)
         if isinstance(setting_value, (float, int)):
-            parse_range(valslist, isinstance(setting_value, int))
+            valslist = parse_range(valslist, self.int_mode)
             self.type = no_type_cast
         elif isinstance(setting_value, (bool, list, dict)):
             self.type = json.loads
@@ -336,6 +338,8 @@ xyz_grid.axis_options.extend([
     ExtraNetworkWeight(True),
     MultiAxis(False),
     MultiAxis(True),
-    OverrideSetting(False),
-    OverrideSetting(True),
+    OverrideSetting(False, False),
+    OverrideSetting(False, True),
+    OverrideSetting(True, False),
+    OverrideSetting(True, True),
 ])
