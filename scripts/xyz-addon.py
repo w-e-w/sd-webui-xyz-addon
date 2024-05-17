@@ -92,7 +92,7 @@ def get_axis(name, axis_type=None):
 step_changer = [get_axis(n) for n in ['Steps', 'Hires steps']]
 
 
-def parse_range(valslist, int_mode=True):
+def parse_range(valslist, int_mode=False):
     """Parse range string to range list, extracted from xyz_grid.Script.run.process_axis()
     """
     valslist_ext = []
@@ -194,8 +194,10 @@ class MultiAxis(xyz_grid.AxisOption):
         else:
             valslist = xyz_grid.csv_string_to_list_strip(vals)
 
-        if opt.type in (int, float):
-            valslist = parse_range(valslist, isinstance(opt.type, int))
+        if opt.type == int:
+            valslist = parse_range(valslist, True)
+        elif opt.type == float:
+            valslist = parse_range(valslist)
         elif opt.type == xyz_grid.str_permutations:
             valslist = list(itertools.permutations(valslist))
 
@@ -241,10 +243,11 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
         network_name, sep, weights = vals.partition(':')
         if not sep:
             assert False, f'Network name not found "{vals}"'
-        if not (valslist := parse_range(xyz_grid.csv_string_to_list_strip(weights), False)):
+        if not (valslist := parse_range(xyz_grid.csv_string_to_list_strip(weights))):
             assert False, f'No weights found for network "{self.network_name}"'
         self.network_name = network_name.strip()
-        return [(self.network_name, str(weight)) for weight in valslist]
+
+        return list(map(lambda v: (self.network_name, v), valslist))
 
     @staticmethod
     def apply(p, x, xs):
@@ -285,14 +288,11 @@ class OverrideSetting(xyz_grid.AxisOption):
 
         valslist = csv_string_to_list_strip(values)
         if isinstance(setting_value, (bool, list, dict)):
-            cast_type = json.loads
+            valslist = map(json.dumps, valslist)
         elif isinstance(setting_value, (float, int)):
-            valslist = parse_range(valslist, self.int_mode)
-            cast_type = int if self.int_mode else float
-        else:
-            cast_type = no_type_cast
+            valslist = map(int if self.int_mode else float, parse_range(valslist, self.int_mode))
 
-        return [(self.setting_key, value) for value in cast_str_list_to_type(valslist, cast_type)]
+        return list(map(lambda v: (self.setting_key, v), valslist))
 
     @staticmethod
     def apply(p, x, xs):
