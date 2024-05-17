@@ -66,11 +66,12 @@ def permutations(s):
 def get_axis(name, axis_type=None):
     """Find an axis of axis_type by name, case-sensitive -> case-insensitive"""
     for option in xyz_grid.axis_options:
-        if option.label.lower() == name:
+        if option.label == name:
             if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
                 return option
+    name_lower = name.lower()
     for option in xyz_grid.axis_options:
-        if option.label.lower() == name.lower():
+        if option.label.lower() == name_lower:
             if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
                 return option
     raise RuntimeError(f'[Addon] Multi axis: could not find axis named "{name}"')
