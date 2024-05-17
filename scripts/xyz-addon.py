@@ -1,7 +1,8 @@
-from modules import scripts, extra_networks
+from modules import scripts, extra_networks, shared
 from io import StringIO
 import numpy as np
 import itertools
+import json
 import csv
 xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz_grid.py"][0].module
 
@@ -9,6 +10,10 @@ xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz
 def csv_string_to_list_strip(csv_str, delimiter=',', quotechar='"'):
     """parse a csv string to a list of striped str"""
     return list(map(str.strip, itertools.chain.from_iterable(csv.reader(StringIO(csv_str), delimiter=delimiter, quotechar=quotechar))))
+
+
+def cast_str_list_to_type(values: list, cast_func):
+    return list(map(cast_func, values))
 
 
 def no_type_cast(x):
@@ -261,6 +266,50 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
         return ': '.join(x)
 
 
+class OverrideSetting(xyz_grid.AxisOption):
+    def __init__(self, is_img2img):
+        super().__init__('[Addon] Override Setting', no_type_cast, self.apply, self.format, self.confirm, prepare=self.prepare, )
+        self.is_img2img = is_img2img
+        self.setting_key = None
+
+    def prepare(self, vals):
+        setting_key, sep, values = vals.partition(':')
+        if not sep:
+            assert False, f'No key found in: {vals}'
+        self.setting_key = setting_key.strip()
+        try:
+            setting_value = getattr(shared.opts, setting_key)
+        except Exception:
+            assert False, f'Invalid setting key: {setting_key}'
+
+        valslist = csv_string_to_list_strip(values)
+        if isinstance(setting_value, str):
+            self.type = str
+        elif isinstance(setting_value, float):
+            self.type = float
+        elif isinstance(setting_value, int):
+            self.type = int
+        elif isinstance(setting_value, (bool, list, dict)):
+            self.type = json.loads
+        else:
+            self.type = no_type_cast
+        return valslist
+
+    def confirm(self, p, valslist):
+        for i, value in enumerate(valslist):
+            valslist[i] = (self.setting_key, value)
+
+    @staticmethod
+    def apply(p, x, xs):
+        key, value = x
+        p.override_settings[key] = value
+
+    @staticmethod
+    def format(p, opt, x):
+        key, value = x
+        return f'{key}: {str(value)}'
+
+
 axis_sr_placeholder_name = '[Addon] Prompt S/R Placeholder'
 axis_sr_placeholder = xyz_grid.AxisOption(
     axis_sr_placeholder_name,
@@ -294,4 +343,6 @@ xyz_grid.axis_options.extend([
     ExtraNetworkWeight(True),
     MultiAxis(False),
     MultiAxis(True),
+    OverrideSetting(False),
+    OverrideSetting(True),
 ])
