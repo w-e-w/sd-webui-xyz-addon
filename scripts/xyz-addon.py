@@ -12,10 +12,6 @@ def csv_string_to_list_strip(csv_str, delimiter=',', quotechar='"'):
     return list(map(str.strip, itertools.chain.from_iterable(csv.reader(StringIO(csv_str), delimiter=delimiter, quotechar=quotechar, skipinitialspace=True))))
 
 
-def cast_str_list_to_type(values: list, cast_func):
-    return list(map(cast_func, values))
-
-
 def no_type_cast(x):
     return x
 
