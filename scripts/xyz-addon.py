@@ -9,7 +9,7 @@ xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz
 
 def csv_string_to_list_strip(csv_str, delimiter=',', quotechar='"'):
     """parse a csv string to a list of striped str"""
-    return list(map(str.strip, itertools.chain.from_iterable(csv.reader(StringIO(csv_str), delimiter=delimiter, quotechar=quotechar))))
+    return list(map(str.strip, itertools.chain.from_iterable(csv.reader(StringIO(csv_str), delimiter=delimiter, quotechar=quotechar, skipinitialspace=True))))
 
 
 def cast_str_list_to_type(values: list, cast_func):
