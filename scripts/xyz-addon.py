@@ -1,4 +1,4 @@
-from modules import scripts
+from modules import scripts, extra_networks
 from io import StringIO
 import numpy as np
 import itertools
@@ -223,6 +223,46 @@ class MultiAxis(xyz_grid.AxisOption):
             return other + val
 
 
+class ExtraNetworkWeight(xyz_grid.AxisOption):
+    label_name = '[Addon] Extra Network Weight'
+
+    def __init__(self, is_img2img):
+        super().__init__(self.label_name, float, self.apply, self.format, self.confirm, prepare=self.prepare, )
+        self.is_img2img = is_img2img
+        self.network_name = None
+
+    def prepare(self, vals):
+        self.network_name, sep, weights = vals.partition(':')
+        if not sep:
+            assert False, f'Network name not found "{vals}"'
+        valslist = xyz_grid.csv_string_to_list_strip(weights)
+        if not valslist:
+            assert False, f'No weights found for network {self.network_name}'
+        return valslist
+
+    def confirm(self, p, valslist):
+        for i, weight in enumerate(valslist):
+            valslist[i] = (self.network_name, str(weight))
+
+    @staticmethod
+    def apply(p, x, xs):
+        p.prompt = ExtraNetworkWeight.change_extra_network_weight(p.prompt, *x)
+
+    @staticmethod
+    def change_extra_network_weight(prompt, network_name, weight):
+        for i in extra_networks.re_extra_net.finditer(prompt):
+            e = i.group(2).split(':')
+            if e[0] == network_name:
+                if len(e) > 1:
+                    e[1] = weight
+                    prompt = prompt[:i.start()] + f'<{i.group(1)}:{":".join(e)}>' + prompt[i.end():]
+                return prompt
+
+    @staticmethod
+    def format(p, opt, x):
+        return ': '.join(x)
+
+
 axis_sr_placeholder_name = '[Addon] Prompt S/R Placeholder'
 axis_sr_placeholder = xyz_grid.AxisOption(axis_sr_placeholder_name, no_type_cast, lambda *arg, **kwargs: apply_replace_placeholder(*arg, **kwargs, axis_name=axis_sr_placeholder_name), format_placeholder, prepare=prepare_sr_placeholder)
 axis_combination_name = '[Addon] Prompt S/R Combinations'
@@ -235,6 +275,8 @@ xyz_grid.axis_options.extend([
     axis_sr_placeholder,
     axis_combination,
     axis_permutation,
+    ExtraNetworkWeight(False),
+    ExtraNetworkWeight(True),
     MultiAxis(False),
     MultiAxis(True),
 ])
