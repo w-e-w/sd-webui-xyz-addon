@@ -27,11 +27,7 @@ def format_placeholder(p, opt, x):
 def prepare_sr_placeholder(vals):
     valslist = xyz_grid.csv_string_to_list_strip(vals)
     placeholder = valslist[0]
-    output = []
-    for v in valslist[1:]:
-        output.append((placeholder, v))
-    return output
-
+    return list(map(lambda v: (placeholder, v), valslist[1:]))
 
 def apply_replace_placeholder(p, x, xs, axis_name='[Addon]'):
     """Similar functionality to the built-in Prompt S/R, but the first item will be replaced with <blank>"""
