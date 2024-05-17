@@ -96,7 +96,7 @@ class MultiAxis(xyz_grid.AxisOption):
     label_name = '[Addon] Multi axis'
 
     def __init__(self, is_img2img):
-        super().__init__(MultiAxis.label_name, self.type, self.apply, self.format, prepare=self.prepare)
+        super().__init__(MultiAxis.label_name, self.type, self.apply, self.format, self.confirm, prepare=self.prepare)
         self.is_img2img = is_img2img
         self.update_total_step = 0
 
@@ -118,7 +118,7 @@ class MultiAxis(xyz_grid.AxisOption):
             for res in itertools.product(*c):
                 xss = MultiAxis.MultiAxisValue()
                 for axis, value in zip(axes, res):
-                    xss.append((axis, value))
+                    xss.append((axis, [value]))
                 multiaxis_values.append(xss)
 
         # hack for changing the step total count
@@ -132,8 +132,8 @@ class MultiAxis(xyz_grid.AxisOption):
     @staticmethod
     def apply(p, x, xs):
         for index, (axis, xi) in enumerate(x):
-            xsi = [x[index][1] for x in xs]
-            axis.apply(p, xi, xsi)
+            xsi = [x[index][1][0] for x in xs]
+            axis.apply(p, xi[0], xsi)
 
     @staticmethod
     def process_multi_axis(opt, vals):
@@ -200,14 +200,20 @@ class MultiAxis(xyz_grid.AxisOption):
 
         valslist = [opt.type(x) for x in valslist]
 
-        # can't perform opt.confirm as we don't have access to p here
+        # can't perform opt.confirm as we don't have access to p, perform it in self.confirm
 
         return valslist
+
+    def confirm(self, p, valslist):
+        for i, multi_axis in enumerate(valslist):
+            for axis, value in multi_axis:
+                if axis.confirm:
+                    axis.confirm(p, value)
 
     def format(self, p, opt, x):
         lables = []
         for axis, val in x:
-            lables.append(f'{axis.label}: {val}')
+            lables.append(axis.format_value(p, axis, val[0]))
         self.label = MultiAxis.label_name  # restore hack for changing the step total count
         return ' | '.join(lables)
 
@@ -224,7 +230,7 @@ class MultiAxis(xyz_grid.AxisOption):
             val = 0
             for axis, value in self:
                 if axis in step_changer:
-                    val += int(value)
+                    val += int(value[0])
             return other + val
 
 
