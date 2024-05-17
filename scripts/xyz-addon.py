@@ -284,15 +284,15 @@ class OverrideSetting(xyz_grid.AxisOption):
             assert False, f'Invalid setting key: {self.setting_key}'
 
         valslist = csv_string_to_list_strip(values)
-        if isinstance(setting_value, (float, int)):
+        if isinstance(setting_value, (bool, list, dict)):
+            cast_type = json.loads
+        elif isinstance(setting_value, (float, int)):
             valslist = parse_range(valslist, self.int_mode)
-            self.type = no_type_cast
-        elif isinstance(setting_value, (bool, list, dict)):
-            self.type = json.loads
+            cast_type = int if self.int_mode else float
         else:
-            self.type = no_type_cast
+            cast_type = no_type_cast
 
-        return [(self.setting_key, value) for value in valslist]
+        return [(self.setting_key, value) for value in cast_str_list_to_type(valslist, cast_type)]
 
     @staticmethod
     def apply(p, x, xs):
