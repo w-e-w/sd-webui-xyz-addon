@@ -29,13 +29,13 @@ def prepare_sr_placeholder(vals):
     placeholder = valslist[0]
     return list(map(lambda v: (placeholder, v), valslist[1:]))
 
+
 def apply_replace_placeholder(p, x, xs, axis_name='[Addon]'):
     """Similar functionality to the built-in Prompt S/R, but the first item will be replaced with <blank>"""
     placeholder, replacement = x
     if placeholder not in p.prompt and placeholder not in p.negative_prompt:
         raise RuntimeError(f'{axis_name}: {placeholder}" was not found in prompt or negative prompt.')
-    p.prompt = p.prompt.replace(placeholder, replacement)
-    p.negative_prompt = p.negative_prompt.replace(placeholder, replacement)
+    p.prompt, p.negative_prompt = p.prompt.replace(placeholder, replacement), p.negative_prompt.replace(placeholder, replacement)
 
 
 def combinatorics(vals, function):
@@ -47,21 +47,12 @@ def combinatorics(vals, function):
         if r2 := r2.strip():
             r2 = int(r2)
         r1 = int(r1.strip())
-
     if not r1:
-        r1 = 1
-        r2 = len(replacement_list)
+        r1, r2 = 1, len(replacement_list)
     if not r2:
         r2 = r1
-
-    if r1 > r2:
-        r1, r2 = r2, r1
-
-    valslist = []
-    for r in range(r1, r2+1):
-        for c in function(replacement_list, r):
-            valslist.append((placeholder, ', '.join(c)))
-    return valslist
+    r1, r2 = (r2, r1) if r1 > r2 else (r1, r2)
+    return [item for r in range(r1, r2 + 1) for item in map(lambda c: (placeholder, ', '.join(c)), function(replacement_list, r))]
 
 
 def combinations(s):
