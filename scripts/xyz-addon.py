@@ -92,11 +92,58 @@ def get_axis(name, axis_type=None):
 step_changer = [get_axis(n) for n in ['Steps', 'Hires steps']]
 
 
+def parse_range(valslist, int_mode=True):
+    """Parse range string to range list, extracted from xyz_grid.Script.run.process_axis()
+    """
+    valslist_ext = []
+    if int_mode:
+        for val in valslist:
+            if val.strip() == '':
+                continue
+            m = xyz_grid.re_range.fullmatch(val)
+            mc = xyz_grid.re_range_count.fullmatch(val)
+            if m is not None:
+                start = int(m.group(1))
+                end = int(m.group(2)) + 1
+                step = int(m.group(3)) if m.group(3) is not None else 1
+
+                valslist_ext += list(range(start, end, step))
+            elif mc is not None:
+                start = int(mc.group(1))
+                end = int(mc.group(2))
+                num = int(mc.group(3)) if mc.group(3) is not None else 1
+
+                valslist_ext += [int(x) for x in np.linspace(start=start, stop=end, num=num).tolist()]
+            else:
+                valslist_ext.append(val)
+    else:
+        for val in valslist:
+            if val.strip() == '':
+                continue
+            m = xyz_grid.re_range_float.fullmatch(val)
+            mc = xyz_grid.re_range_count_float.fullmatch(val)
+            if m is not None:
+                start = float(m.group(1))
+                end = float(m.group(2))
+                step = float(m.group(3)) if m.group(3) is not None else 1
+
+                valslist_ext += np.arange(start, end + step, step).tolist()
+            elif mc is not None:
+                start = float(mc.group(1))
+                end = float(mc.group(2))
+                num = int(mc.group(3)) if mc.group(3) is not None else 1
+
+                valslist_ext += np.linspace(start=start, stop=end, num=num).tolist()
+            else:
+                valslist_ext.append(val)
+    return valslist_ext
+
+
 class MultiAxis(xyz_grid.AxisOption):
     label_name = '[Addon] Multi axis'
 
     def __init__(self, is_img2img):
-        super().__init__(MultiAxis.label_name, self.type, self.apply, self.format, self.confirm, prepare=self.prepare)
+        super().__init__(MultiAxis.label_name, no_type_cast, self.apply, self.format, self.confirm, prepare=self.prepare)
         self.is_img2img = is_img2img
         self.update_total_step = 0
 
@@ -147,54 +194,8 @@ class MultiAxis(xyz_grid.AxisOption):
         else:
             valslist = xyz_grid.csv_string_to_list_strip(vals)
 
-        if opt.type == int:
-            valslist_ext = []
-
-            for val in valslist:
-                if val.strip() == '':
-                    continue
-                m = xyz_grid.re_range.fullmatch(val)
-                mc = xyz_grid.re_range_count.fullmatch(val)
-                if m is not None:
-                    start = int(m.group(1))
-                    end = int(m.group(2)) + 1
-                    step = int(m.group(3)) if m.group(3) is not None else 1
-
-                    valslist_ext += list(range(start, end, step))
-                elif mc is not None:
-                    start = int(mc.group(1))
-                    end = int(mc.group(2))
-                    num = int(mc.group(3)) if mc.group(3) is not None else 1
-
-                    valslist_ext += [int(x) for x in np.linspace(start=start, stop=end, num=num).tolist()]
-                else:
-                    valslist_ext.append(val)
-
-            valslist = valslist_ext
-        elif opt.type == float:
-            valslist_ext = []
-
-            for val in valslist:
-                if val.strip() == '':
-                    continue
-                m = xyz_grid.re_range_float.fullmatch(val)
-                mc = xyz_grid.re_range_count_float.fullmatch(val)
-                if m is not None:
-                    start = float(m.group(1))
-                    end = float(m.group(2))
-                    step = float(m.group(3)) if m.group(3) is not None else 1
-
-                    valslist_ext += np.arange(start, end + step, step).tolist()
-                elif mc is not None:
-                    start = float(mc.group(1))
-                    end = float(mc.group(2))
-                    num = int(mc.group(3)) if mc.group(3) is not None else 1
-
-                    valslist_ext += np.linspace(start=start, stop=end, num=num).tolist()
-                else:
-                    valslist_ext.append(val)
-
-            valslist = valslist_ext
+        if opt.type in (int, float):
+            valslist = parse_range(valslist, isinstance(opt.type, int))
         elif opt.type == xyz_grid.str_permutations:
             valslist = list(itertools.permutations(valslist))
 
@@ -217,10 +218,6 @@ class MultiAxis(xyz_grid.AxisOption):
         self.label = MultiAxis.label_name  # restore hack for changing the step total count
         return ' | '.join(lables)
 
-    @staticmethod
-    def type(x):
-        return x
-
     class MultiAxisValue(list):
         """A hack for changing the step total count by modifying the sum() function"""
         def __new__(cls, *args):
@@ -236,7 +233,7 @@ class MultiAxis(xyz_grid.AxisOption):
 
 class ExtraNetworkWeight(xyz_grid.AxisOption):
     def __init__(self, is_img2img):
-        super().__init__('[Addon] Extra Network Weight', float, self.apply, self.format, self.confirm, prepare=self.prepare, )
+        super().__init__('[Addon] Extra Network Weight', no_type_cast, self.apply, self.format, prepare=self.prepare)
         self.is_img2img = is_img2img
         self.network_name = None
 
@@ -244,14 +241,9 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
         self.network_name, sep, weights = vals.partition(':')
         if not sep:
             assert False, f'Network name not found "{vals}"'
-        valslist = xyz_grid.csv_string_to_list_strip(weights)
-        if not valslist:
+        if not (valslist := parse_range(xyz_grid.csv_string_to_list_strip(weights), False)):
             assert False, f'No weights found for network "{self.network_name}"'
-        return valslist
-
-    def confirm(self, p, valslist):
-        for i, weight in enumerate(valslist):
-            valslist[i] = (self.network_name, str(weight))
+        return [(self.network_name, str(weight)) for weight in valslist]
 
     @staticmethod
     def apply(p, x, xs):
@@ -274,7 +266,7 @@ class ExtraNetworkWeight(xyz_grid.AxisOption):
 
 class OverrideSetting(xyz_grid.AxisOption):
     def __init__(self, is_img2img):
-        super().__init__('[Addon] Override Setting', no_type_cast, self.apply, self.format, self.confirm, prepare=self.prepare, )
+        super().__init__('[Addon] Override Setting', no_type_cast, self.apply, self.format, prepare=self.prepare)
         self.is_img2img = is_img2img
         self.setting_key = None
 
@@ -289,21 +281,15 @@ class OverrideSetting(xyz_grid.AxisOption):
             assert False, f'Invalid setting key: {setting_key}'
 
         valslist = csv_string_to_list_strip(values)
-        if isinstance(setting_value, str):
-            self.type = str
-        elif isinstance(setting_value, float):
-            self.type = float
-        elif isinstance(setting_value, int):
-            self.type = int
+        if isinstance(setting_value, (float, int)):
+            parse_range(valslist, isinstance(setting_value, int))
+            self.type = no_type_cast
         elif isinstance(setting_value, (bool, list, dict)):
             self.type = json.loads
         else:
             self.type = no_type_cast
-        return valslist
 
-    def confirm(self, p, valslist):
-        for i, value in enumerate(valslist):
-            valslist[i] = (self.setting_key, value)
+        return [(self.setting_key, value) for value in valslist]
 
     @staticmethod
     def apply(p, x, xs):
