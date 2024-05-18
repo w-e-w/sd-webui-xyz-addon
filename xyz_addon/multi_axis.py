@@ -48,13 +48,7 @@ def create_axes(xyz_grid):
             return super().__new__(cls, args)
 
         def __radd__(self, other):
-            total = 0
-            for axis, value in self:
-                if isinstance(axis, MultiAxis):
-                    total += sum(value)
-                elif axis in step_changer:
-                    total += int(value[0])
-            return other + total
+            return other + sum(sum(value) if isinstance(axis, MultiAxis) else int(value[0] if axis in step_changer else 0) for axis, value in self)
 
     class MultiAxis(xyz_grid.AxisOption):
         def __init__(self, is_img2img):
