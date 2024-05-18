@@ -2,27 +2,63 @@ from .utils import no_type_cast, csv_string_to_list_strip, parse_range
 import itertools
 
 
+class Label(str):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.extra = set()
+
+    def __eq__(self, other):
+        return other in self.extra or super().__eq__(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(super().__str__())
+
+    def add_extra(self, extra):
+        self.extra.add(extra)
+
+    def clear_extra(self):
+        self.extra.clear()
+
+
+def is_axis_type(axis, img2img):
+    return img2img is None or ((option_axis_type := getattr(axis, 'is_img2img', None)) is None or img2img == option_axis_type)
+
+
 def create_axes(xyz_grid):
     def get_axis(name, axis_type=None):
         """Find an axis of axis_type by name, case-sensitive -> case-insensitive"""
         for option in xyz_grid.axis_options:
-            if option.label == name or getattr(option, 'label_name', None) == name:
-                if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
-                    return option
+            if is_axis_type(option, axis_type) and str(option.label) == name:
+                return option
         name_lower = name.lower()
         for option in xyz_grid.axis_options:
-            if option.label.lower() == name_lower or (label_name := getattr(option, 'label_name', None) and label_name.lower() == name_lower):
-                if axis_type is None or ((option_axis_type := getattr(option, 'is_img2img', None)) is None or axis_type == option_axis_type):
-                    return option
+            if is_axis_type(option, axis_type) and option.label.lower() == name_lower:
+                return option
         raise RuntimeError(f'[Addon] Multi axis: could not find axis named "{name}"')
 
     step_changer = [get_axis(n) for n in ['Steps', 'Hires steps']]
 
-    class MultiAxis(xyz_grid.AxisOption):
-        label_name = '[Addon] Multi axis'
+    class MultiAxisValue(list):
+        """A hack for changing the step total count by modifying the sum() function"""
 
+        def __new__(cls, *args):
+            return super().__new__(cls, args)
+
+        def __radd__(self, other):
+            total = 0
+            for axis, value in self:
+                if isinstance(axis, MultiAxis):
+                    total += sum(value)
+                elif axis in step_changer:
+                    total += int(value[0])
+            return other + total
+
+    class MultiAxis(xyz_grid.AxisOption):
         def __init__(self, is_img2img):
-            self.label = '[Addon] Multi axis'
+            self.label = Label('[Addon] Multi axis')
             self.type = no_type_cast
             self.cost = 0.0
             self.choices = None
@@ -44,7 +80,7 @@ def create_axes(xyz_grid):
             # combination products
             for c in itertools.combinations(valuse, len(valuse)):
                 for res in itertools.product(*c):
-                    xss = MultiAxis.MultiAxisValue()
+                    xss = MultiAxisValue()
                     for axis, value in zip(axes, res):
                         xss.append((axis, [value]))
                     multiaxis_values.append(xss)
@@ -52,7 +88,7 @@ def create_axes(xyz_grid):
             # hack for changing the step total count
             for step_changer_axis in step_changer:
                 if step_changer_axis in axes:
-                    self.label = step_changer_axis.label
+                    self.label.add_extra(step_changer_axis.label)
                     break
 
             return multiaxis_values
@@ -73,7 +109,7 @@ def create_axes(xyz_grid):
             if opt.prepare is not None:
                 valslist = opt.prepare(vals)
             else:
-                valslist = xyz_grid.csv_string_to_list_strip(vals)
+                valslist = csv_string_to_list_strip(vals)
 
             if opt.type == int:
                 valslist = parse_range(xyz_grid, valslist, True)
@@ -99,20 +135,7 @@ def create_axes(xyz_grid):
             lables = []
             for axis, val in x:
                 lables.append(axis.format_value(p, axis, val[0]))
-            self.label = MultiAxis.label_name  # restore hack for changing the step total count
+            self.label.clear_extra()  # restore hack for changing the step total count
             return ' | '.join(lables)
-
-        class MultiAxisValue(list):
-            """A hack for changing the step total count by modifying the sum() function"""
-
-            def __new__(cls, *args):
-                return super().__new__(cls, args)
-
-            def __radd__(self, other):
-                val = 0
-                for axis, value in self:
-                    if axis in step_changer:
-                        val += int(value[0])
-                return other + val
 
     return [MultiAxis(False), MultiAxis(True)]
