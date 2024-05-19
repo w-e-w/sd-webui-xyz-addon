@@ -60,7 +60,7 @@ def create_axes(xyz_grid):
 
         def prepare(self, vals):
             self.cost = 0.0  # reset axis cost
-            axes, valuse, multiaxis_values = [], [], []
+            axes, valuse = [], []
 
             # pares vars
             for param in csv_string_to_list_strip(vals, delimiter='|', quotechar="'"):
@@ -71,21 +71,14 @@ def create_axes(xyz_grid):
                 self.cost += axis.cost  # sum cost of individual axis
                 valuse.append(self.process_multi_axis(axis, value.strip()))
 
-            # combination products
-            for c in itertools.combinations(valuse, len(valuse)):
-                for res in itertools.product(*c):
-                    xss = MultiAxisValue()
-                    for axis, value in zip(axes, res):
-                        xss.append((axis, [value]))
-                    multiaxis_values.append(xss)
-
             # hack for changing the step total count
             for step_changer_axis in step_changer:
                 if step_changer_axis in axes:
                     self.label.add_extra(step_changer_axis.label)
                     break
 
-            return multiaxis_values
+            # combination products
+            return list(map(lambda r: MultiAxisValue(map((lambda x: tuple([x[0], [x[1]]])), zip(axes, r))), itertools.product(*valuse)))
 
         @staticmethod
         def apply(p, x, xs):
