@@ -51,12 +51,13 @@ def create_axes(xyz_grid):
             return other + sum(sum(value) if isinstance(axis, MultiAxis) else int(value[0] if axis in step_changer else 0) for axis, value in self)
 
     class MultiAxis(xyz_grid.AxisOption):
-        def __init__(self, is_img2img):
-            self.label = Label('[Addon] Multi axis')
+        def __init__(self, label, is_img2img, parallel):
+            self.label = Label(label)
             self.type = no_type_cast
             self.cost = 0.0
             self.choices = None
             self.is_img2img = is_img2img
+            self.parallel = parallel
 
         def prepare(self, vals):
             self.cost = 0.0  # reset axis cost
@@ -77,8 +78,8 @@ def create_axes(xyz_grid):
                     self.label.add_extra(step_changer_axis.label)
                     break
 
-            # combination products
-            return list(map(lambda r: MultiAxisValue(map((lambda x: tuple([x[0], [x[1]]])), zip(axes, r))), itertools.product(*valuse)))
+            # products or zip
+            return list(map(lambda r: MultiAxisValue(map((lambda x: tuple([x[0], [x[1]]])), zip(axes, r))), zip(*valuse) if self.parallel else itertools.product(*valuse)))
 
         @staticmethod
         def apply(p, x, xs):
@@ -125,4 +126,9 @@ def create_axes(xyz_grid):
             self.label.clear_extra()  # restore hack for changing the step total count
             return ' | '.join(lables)
 
-    return [MultiAxis(False), MultiAxis(True)]
+    return [
+        MultiAxis('[Addon] Multi axis', False, False),
+        MultiAxis('[Addon] Multi axis', True, False),
+        MultiAxis('[Addon] Parallel axis', False, True),
+        MultiAxis('[Addon] Parallel axis', True, True),
+    ]
