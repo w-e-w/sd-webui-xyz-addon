@@ -1,5 +1,5 @@
 from .utils import TrueTrue, no_type_cast, csv_string_to_list_strip
-from modules import patches, script_callbacks
+from modules import patches, script_callbacks, shared
 from functools import wraps
 import itertools
 
@@ -30,10 +30,11 @@ def wrap_process_images(func):
     @wraps(func)
     def wrapper(p, *args, **kwargs):
         res = func(p, *args, **kwargs)
-        if (prompt := getattr(p, 'xyz_addon_placeholder_original_prompt', None)) and p.all_prompts:
-            p.all_prompts[0] = prompt
-        if (negative_prompt := getattr(p, 'xyz_addon_placeholder_original_negative_prompt', None)) and p.all_negative_prompts:
-            p.all_negative_prompts[0] = negative_prompt
+        if shared.opts.xyz_addon_restore_placeholder:
+            if (prompt := getattr(p, 'xyz_addon_placeholder_original_prompt', None)) and p.all_prompts:
+                p.all_prompts[0] = prompt
+            if (negative_prompt := getattr(p, 'xyz_addon_placeholder_original_negative_prompt', None)) and p.all_negative_prompts:
+                p.all_negative_prompts[0] = negative_prompt
         return res
     return wrapper
 

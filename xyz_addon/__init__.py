@@ -1,4 +1,4 @@
-from . import extra_network_weight, prompt_sr, multi_axis, override_setting
+from . import extra_network_weight, prompt_sr, multi_axis, override_setting, settings
 from modules import scripts, script_callbacks
 
 
@@ -12,3 +12,7 @@ def add_axes():
 
 def on_before_ui():
     script_callbacks.on_before_ui(add_axes)
+
+
+def on_ui_settings():
+    script_callbacks.on_ui_settings(settings.add_settings)
