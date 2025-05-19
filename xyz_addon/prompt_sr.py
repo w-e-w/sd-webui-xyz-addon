@@ -41,7 +41,14 @@ def wrap_process_images(func):
 
 def create_axes(xyz_grid):
     patches.patch(__name__, xyz_grid, 'process_images', wrap_process_images(xyz_grid.process_images))
-    script_callbacks.on_script_unloaded(lambda: patches.undo(__name__, xyz_grid, 'process_images'))  # in this case, undo should not be necessary
+
+    def undo():
+        try:
+            patches.undo(__name__, xyz_grid, 'process_images')
+        except RuntimeError:
+            pass
+
+    script_callbacks.on_script_unloaded(undo)  # in this case, undo should not be necessary
 
     class PromptSR(xyz_grid.AxisOption):
         def __init__(self, label, include_first, mode=None):
